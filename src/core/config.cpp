@@ -29,6 +29,10 @@ void Config::save(const std::filesystem::path &path) const {
               {"submission_port", submission_port},
               {"outbound_enabled", outbound_enabled},
               {"outbound_ipv6", outbound_ipv6},
+              {"antispam_enabled", antispam_enabled},
+              {"antispam_dns", antispam_dns},
+              {"antispam_threshold", antispam_threshold},
+              {"antispam_blocklist", antispam_blocklist},
               {"database", relative(database)},
               {"certificate", relative(certificate)},
               {"private_key", relative(private_key)},
@@ -85,6 +89,10 @@ Config Config::load(const std::filesystem::path &path) {
                                            "submission_port",
                                            "outbound_enabled",
                                            "outbound_ipv6",
+                                           "antispam_enabled",
+                                           "antispam_dns",
+                                           "antispam_threshold",
+                                           "antispam_blocklist",
                                            "database",
                                            "certificate",
                                            "private_key",
@@ -121,6 +129,10 @@ Config Config::load(const std::filesystem::path &path) {
         throw std::runtime_error("Unsupported language");
     c.outbound_enabled = j.value("outbound_enabled", c.outbound_enabled);
     c.outbound_ipv6 = j.value("outbound_ipv6", c.outbound_ipv6);
+    c.antispam_enabled = j.value("antispam_enabled", c.antispam_enabled);
+    c.antispam_dns = j.value("antispam_dns", c.antispam_dns);
+    c.antispam_threshold = j.value("antispam_threshold", c.antispam_threshold);
+    c.antispam_blocklist = j.value("antispam_blocklist", c.antispam_blocklist);
     auto base = std::filesystem::absolute(path).parent_path();
     auto resolve = [&](const char *key, const std::filesystem::path &fallback) {
         auto p = utf8_path(j.value(key, path_utf8(fallback)));
@@ -166,6 +178,14 @@ Config Config::load(const std::filesystem::path &path) {
     return c;
 }
 void Config::validate() const {
+    if (antispam_threshold < 1 || antispam_threshold > 100 || antispam_blocklist.size() > 100)
+        throw std::runtime_error("Invalid antispam settings");
+    for (const auto &entry : antispam_blocklist) {
+        if (entry.find('@') == std::string::npos)
+            (void)domain_name(entry);
+        else
+            (void)email_address(entry);
+    }
     (void)domain_name(domain);
     if (webmail_driver != "socket" && webmail_driver != "http_sys" && webmail_driver != "apache")
         throw std::runtime_error("Invalid webmail transport");

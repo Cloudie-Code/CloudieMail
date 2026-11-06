@@ -1,4 +1,5 @@
 #include "cloudiemail/server.hpp"
+#include "cloudiemail/antispam.hpp"
 #include "cloudiemail/i18n.hpp"
 #include "cloudiemail/setup.hpp"
 #include <algorithm>
@@ -85,6 +86,23 @@ void Connection::wait(bool writing, std::chrono::steady_clock::time_point deadli
         if (rc < 0 && !would_block())
             throw std::runtime_error("Socket indisponivel");
     }
+}
+void Connection::renew(unsigned seconds) {
+    expires_ = std::chrono::steady_clock::now() + std::chrono::seconds(seconds);
+}
+bool Connection::readable(unsigned milliseconds) {
+    if (!input_.empty() || (ssl_ && SSL_pending(ssl_) > 0))
+        return true;
+    if (stopping_ || std::chrono::steady_clock::now() >= expires_)
+        throw std::runtime_error("Session expired");
+    fd_set fds;
+    FD_ZERO(&fds);
+    FD_SET(socket_, &fds);
+    timeval tv{static_cast<long>(milliseconds / 1000), static_cast<long>((milliseconds % 1000) * 1000)};
+    auto rc = select(static_cast<int>(socket_ + 1), &fds, nullptr, nullptr, &tv);
+    if (rc < 0 && !would_block())
+        throw std::runtime_error("Socket unavailable");
+    return rc > 0;
 }
 void Connection::start_tls() {
     if (ssl_ || !input_.empty())
@@ -250,7 +268,8 @@ Json Server::logs(std::uint64_t after) const {
     return result;
 }
 std::string Server::deliver(const std::string &sender, const std::vector<std::string> &recipients,
-                            std::string_view message, const Login *authenticated) {
+                            std::string_view message, const Login *authenticated, const std::string &peer,
+                            const std::string &helo) {
     if (message.size() > config_.max_message_bytes || recipients.empty() || recipients.size() > 20)
         throw std::runtime_error("Message limit exceeded");
     if (authenticated && authenticated->email != sender)
@@ -287,10 +306,18 @@ std::string Server::deliver(const std::string &sender, const std::vector<std::st
         normalized += "\r\n" + std::string(message.substr(end_headers + 4));
         message = normalized;
     }
+    SpamResult spam;
+    if (!authenticated && config_.antispam_enabled) {
+        spam = classify_spam(config_, message, sender, peer, helo);
+        normalized = remove_spam_headers(message);
+        message = normalized;
+    }
     auto id = random_id();
     auto received =
         "Received: by " + config_.mail_host() + " with ESMTP id " + id + "; " + mail_date() + "\r\n";
-    auto content = received + "Return-Path: <" + sender + ">\r\n" + std::string(message);
+    auto content = received + "Return-Path: <" + sender + ">\r\n" +
+                   ((!authenticated && config_.antispam_enabled) ? spam.headers() : "") +
+                   std::string(message);
     std::vector<Delivery> deliveries;
     std::vector<QueuedMail> outgoing;
     std::set<std::string> distinct;
@@ -311,7 +338,8 @@ std::string Server::deliver(const std::string &sender, const std::vector<std::st
             auto doc = database_.account(email);
             if (!doc)
                 throw std::runtime_error("Recipient not found");
-            deliveries.push_back({email, seal_message(*doc, content), content.size()});
+            deliveries.push_back(
+                {email, seal_message(*doc, content), content.size(), spam.junk ? "Junk" : "INBOX"});
         }
         if (authenticated)
             deliveries.push_back(
@@ -324,7 +352,7 @@ std::string Server::deliver(const std::string &sender, const std::vector<std::st
     }
     wipe(content);
     wipe(signed_message);
-    log(outgoing.empty() ? "message.received" : "delivery.queued");
+    log(spam.junk ? "message.quarantined" : outgoing.empty() ? "message.received" : "delivery.queued");
     return id;
 }
 std::pair<std::string, WebSession> Server::new_session(std::shared_ptr<Login> login) {

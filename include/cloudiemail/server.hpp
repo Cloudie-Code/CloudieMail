@@ -38,6 +38,8 @@ class Connection : public HttpStream {
                std::string address);
     ~Connection() override;
     void start_tls();
+    bool readable(unsigned milliseconds);
+    void renew(unsigned seconds);
     bool secure() const {
         return ssl_ != nullptr;
     }
@@ -101,7 +103,8 @@ class Server {
     std::shared_ptr<Login> authenticate(const std::string &email, std::string_view password,
                                         const std::string &peer);
     std::string deliver(const std::string &sender, const std::vector<std::string> &recipients,
-                        std::string_view message, const Login *authenticated = nullptr);
+                        std::string_view message, const Login *authenticated = nullptr,
+                        const std::string &peer = {}, const std::string &helo = {});
     void log(const std::string &event);
     Json logs(std::uint64_t after = 0) const;
     std::pair<std::string, WebSession> new_session(std::shared_ptr<Login> login);

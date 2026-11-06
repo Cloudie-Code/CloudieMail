@@ -1,4 +1,4 @@
-"""Create data with a schema-1 binary, then upgrade/read it with the current build.
+"""Create data with a released binary, then upgrade/read it with the current build.
 Arguments: current binary, legacy binary or legacy Console.sh.
 """
 
@@ -148,5 +148,5 @@ with tempfile.TemporaryDirectory(prefix="cloudiemail-migration-") as temporary:
     finally:
         stop(process)
     print(
-        "Schema 1 -> 2: accounts, encrypted message, password and UID preserved; default folder/labels migrated"
+        "Legacy -> current schema: accounts, encrypted message, password and UID preserved; folders and metadata migrated"
     )

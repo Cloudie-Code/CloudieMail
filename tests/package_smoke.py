@@ -48,6 +48,7 @@ with tempfile.TemporaryDirectory(
     run(linux / "run.sh", "cloudiemail-tests", cwd=directory)
     run(linux / "run.sh", "cloudiemail-config-tests", cwd=directory)
     run(linux / "run.sh", "cloudiemail-mail-tests", cwd=directory)
+    run(linux / "run.sh", "cloudiemail-protocol-tests", cwd=directory)
     run("bash", linux / "scripts/dev-certificate.sh", cwd=directory)
     run(
         linux / "run.sh",
@@ -113,6 +114,12 @@ with tempfile.TemporaryDirectory(
         linux / "Console.sh",
         cwd=directory,
     )
+    run(
+        sys.executable,
+        ROOT / "tests/imap_integration.py",
+        linux / "Console.sh",
+        cwd=directory,
+    )
     gui = subprocess.Popen(
         [str(linux / "CloudieMail.sh")],
         env=ENV,
@@ -143,6 +150,7 @@ with tempfile.TemporaryDirectory(
     # App-local DLL resolution must work without the development WINEPATH.
     run("wine", windows / "bin/cloudiemail-tests.exe", "--crypto-only", cwd=directory)
     run("wine", windows / "bin/cloudiemail-config-tests.exe", cwd=directory)
+    run("wine", windows / "bin/cloudiemail-protocol-tests.exe", cwd=directory)
     run("wine", windows / "bin/cloudiemail-http-tests.exe", cwd=directory)
     run(
         "wine",
@@ -153,6 +161,6 @@ with tempfile.TemporaryDirectory(
     run("wine", windows / "bin/lego.exe", "--version", cwd=directory)
     run("wine", "cmd", "/d", "/c", "Console.cmd", "--help", cwd=windows)
     print(
-        "Relocated Linux runtime passed; Windows crypto and launcher passed. Native Windows/Firebird validation remains pending.",
+        "Relocated Linux IMAP/antispam and GTK4 passed; Windows unit tests and launcher passed under Wine.",
         flush=True,
     )

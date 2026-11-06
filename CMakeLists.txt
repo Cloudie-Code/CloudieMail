@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.25)
-project(CloudieMail VERSION 0.1.0 LANGUAGES CXX)
+project(CloudieMail VERSION 0.2.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -29,6 +29,9 @@ add_library(cloudiemail_core
     src/net/dns.cpp
     src/net/server.cpp
     src/mail/protocols.cpp
+    src/mail/imap.cpp
+    src/mail/antispam.cpp
+    src/mail/mail_message.cpp
     src/net/http.cpp
     src/app/setup.cpp
     src/platform/process.cpp

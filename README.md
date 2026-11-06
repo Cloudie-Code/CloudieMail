@@ -4,7 +4,7 @@ Servidor de email para Linux e Windows, com administração por interface gráfi
 
 [Baixar a versão mais recente](https://github.com/Cloudie-Code/CloudieMail/releases) · [Configuração](docs/CONFIGURATION.md) · [Compilação](docs/BUILDING.md) · [Segurança](docs/SECURITY.md)
 
-> **v0.1.0 é uma pré-release.** O IMAP ainda é parcial, não há filtro antispam de entrada e a compatibilidade com clientes externos e Windows nativo precisa de mais testes. Consulte os [testes e limites conhecidos](docs/STATUS.md) antes de expor o servidor à Internet.
+> **v0.2.0:** IMAP com pastas, anexos, busca, flags persistentes e sincronização IDLE, além de filtro antispam integrado. O mantenedor utiliza o servidor no Windows com o Mail do iOS. Veja os [recursos de IMAP e antispam](docs/IMAP-ANTISPAM.md) e os [testes da versão](docs/STATUS.md).
 
 ## Interface Linux
 
@@ -31,7 +31,8 @@ Pastas, marcadores, busca, anexos, rascunhos e acompanhamento das entregas em um
 
 - SMTP com STARTTLS, SMTPS e submissão autenticada com o email e a senha da conta.
 - Entrega direta aos MX de destino, assinatura DKIM, fila criptografada e novas tentativas em falhas temporárias.
-- POP3S e IMAPS; nesta versão, o IMAP atende à Caixa de entrada.
+- POP3S e IMAPS com pastas, APPEND/COPY/MOVE, busca, flags persistentes, ENVELOPE/BODYSTRUCTURE e IDLE.
+- Antispam de entrada com pontuação, verificação do remetente e encaminhamento de mensagens suspeitas para Lixo eletrônico.
 - Assistente de domínio, DNS manual ou Cloudflare, certificados Let's Encrypt e primeira conta.
 - Webmail HTTPS em `webmail.seudominio.com`.
 - HTTP.sys no Windows para compartilhar a porta 443 com outros sites; integração opcional com Apache no Linux.

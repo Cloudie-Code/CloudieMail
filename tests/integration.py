@@ -76,6 +76,7 @@ with tempfile.TemporaryDirectory(prefix="cloudiemail-test-") as temporary:
         https_port=ports[4],
         submission_port=ports[5],
         outbound_enabled=False,
+        antispam_dns=False,
         max_message_bytes=65536,
         max_connections=8,
         mailbox_quota_bytes=1048576,
@@ -227,8 +228,8 @@ with tempfile.TemporaryDirectory(prefix="cloudiemail-test-") as temporary:
                 "IMAP fetches body alongside size",
             )
             check(
-                imap.uid("fetch", str(alice_uid), "(BODYSTRUCTURE)")[0] == "NO",
-                "unsupported IMAP attribute is explicitly rejected",
+                imap.uid("fetch", str(alice_uid), "(BODYSTRUCTURE)")[0] == "OK",
+                "IMAP exposes MIME body structure",
             )
             imap.select("INBOX", readonly=True)
             check(

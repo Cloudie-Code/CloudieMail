@@ -19,7 +19,7 @@ O Firebird armazena o endereço da conta, chave pública, metadados da chave, ta
 
 Consultas usam parâmetros. Leituras, flags e exclusões incluem tanto o endereço autenticado quanto o UID. Uma entrega a vários destinatários locais é transacional. Há quota por conta e limite inicial de 1.000 mensagens por caixa.
 
-Sealed boxes fornecem confidencialidade e integridade para o destinatário, **não assinatura do remetente**. Uma pessoa com acesso de escrita ao banco pode adulterar metadados, excluir/reordenar mensagens ou substituir chaves públicas de novas entregas. O modelo não protege contra um administrador/servidor ativamente comprometido. SPF/DKIM/DMARC de entrada ainda precisam ser implementados.
+Sealed boxes fornecem confidencialidade e integridade para o destinatário, **não assinatura do remetente**. Uma pessoa com acesso de escrita ao banco pode adulterar metadados, excluir/reordenar mensagens ou substituir chaves públicas de novas entregas. O modelo não protege contra um administrador/servidor ativamente comprometido. A entrada passa pelo filtro descrito em [IMAP-ANTISPAM.md](IMAP-ANTISPAM.md), com SPF, DKIM e avaliação conservadora de DMARC. Autenticação de domínio não garante que uma mensagem seja legítima.
 
 Em Firebird embedded, a proteção do arquivo é a fronteira de acesso. O usuário lógico SYSDBA não substitui permissões do sistema operacional. Não abra a porta Firebird à Internet. O código cria diretórios novos restritos e arquivo 0600 no Linux; permissões de diretórios preexistentes precisam ser provisionadas corretamente. ACLs Windows ainda precisam de validação.
 
@@ -62,3 +62,9 @@ Revisão independente, fuzzing dos parsers, testes de concorrência/DoS, valida�
 - [Cloudflare: email e DNS-only](https://developers.cloudflare.com/dns/troubleshooting/email-issues/)
 - [Cloudflare: criação de registros](https://developers.cloudflare.com/api/resources/dns/subresources/records/methods/create/)
 - [StatusNotifierItem](https://specifications.freedesktop.org/status-notifier-item/latest-single/)
+
+## IMAP e antispam
+
+APPEND criptografa o conteúdo antes da gravação. COPY/MOVE operam apenas dentro da conta autenticada; MOVE e EXPUNGE usam transações. Flags e inscrições ficam no Firebird. Literais, profundidade MIME, quantidade de partes, resposta FETCH e consultas DNS têm limites para controlar o consumo de recursos.
+
+O antispam atua em entregas SMTP não autenticadas. Resultados recebidos em cabeçalhos `X-CloudieMail-*` reservados são removidos e substituídos pelo resultado local. Falhas de DNS não causam rejeição nem classificação isolada como spam. A classificação não descarta mensagens: a pasta Junk mantém a mesma criptografia das outras pastas. As consultas DNS por HTTPS enviam nomes de domínio à Cloudflare, sem senha, token ou conteúdo de mensagens.

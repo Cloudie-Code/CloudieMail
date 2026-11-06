@@ -69,7 +69,7 @@ Sem essa opção, o CloudieMail serve HTTPS diretamente. Ao desativar a integra�
 
 Use `mail.<domínio>` para entrada e saída, o endereço completo como usuário e a senha da conta. Prefira IMAPS 993 e SMTPS 465 com autenticação. Os números devem corresponder à configuração do servidor.
 
-O IMAP desta versão cobre apenas a Caixa de entrada. Pastas, APPEND/COPY/MOVE, BODYSTRUCTURE e IDLE ainda não estão completos; clientes como Apple Mail, Outlook e Thunderbird podem precisar de funcionalidades que ainda faltam. O webmail oferece a interface mais completa nesta versão.
+O IMAP oferece pastas, anexos, busca, flags persistentes, APPEND/COPY/MOVE e notificações IDLE. Enviados, Rascunhos, Lixeira e Lixo eletrônico são identificados por SPECIAL-USE. O mantenedor confirmou o uso do servidor Windows com o Mail do iOS. Consulte [IMAP e antispam](IMAP-ANTISPAM.md) para capacidades, configuração e limites.
 
 ## Atualizações e backup
 
@@ -78,3 +78,9 @@ Encerre o servidor, inclusive na bandeja, e faça backup de `config/`, `data/` e
 Extraia o pacote novo e transfira a configuração e os dados preservando os caminhos. Atualize executáveis e webmail juntos em mudanças de versão. Não inicialize outro banco nem recrie as contas existentes.
 
 Bancos do esquema 1 são migrados para o esquema 2 automaticamente. Para voltar a um executável que só entende o esquema 1, restaure o backup anterior à migração. Para migrar entre Windows e Linux, use backup/restauração do Firebird e ajuste os caminhos.
+
+## Filtro antispam
+
+Em **Configurações → Preferências e limites**, ative o filtro, escolha se deseja verificar o DNS do remetente, ajuste a pontuação e informe emails ou domínios bloqueados, separados por espaço. O padrão é filtro ligado, DNS ligado e pontuação 5. As alterações entram em vigor ao reiniciar o servidor.
+
+Mensagens classificadas como spam vão para **Lixo eletrônico** e continuam criptografadas. Para recuperar uma mensagem, mova-a para a Caixa de entrada no webmail ou no cliente IMAP. Essa ação não treina um modelo nem cria uma exceção automática.

@@ -27,3 +27,5 @@ Output/                Pacotes e arquivos de release, fora do Git
 Os cabeçalhos em `include/cloudiemail/` são usados por vários módulos. Detalhes exclusivos de uma plataforma, como a adaptação de requisições HTTP.sys, ficam junto à implementação.
 
 Os testes criam bancos, certificados e contas temporários. Dados de instalação, certificados pessoais, dependências baixadas e arquivos de build não entram no repositório. Scripts de suporte específicos de uma instalação ficam fora da distribuição.
+
+O IMAP está em `src/mail/imap.cpp`; `mail_message.cpp` interpreta cabeçalhos e partes MIME. O filtro de entrada está em `antispam.cpp` e roda antes da criptografia da entrega local. A migração do Firebird preserva os payloads e acrescenta flags, datas internas e inscrições de pastas.

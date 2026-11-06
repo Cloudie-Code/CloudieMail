@@ -170,7 +170,12 @@
     "console.key_id": "Identificador da chave",
     "console.password_changed": "Senha alterada; mensagens preservadas. Reinicie o servidor para revogar sessões existentes.",
     "console.help": "Senhas são lidas sem eco. Token Cloudflare via CLOUDIEMAIL_CF_TOKEN. Idioma via CLOUDIEMAIL_LANGUAGE ou configurações.",
-    "field.outbound_ipv6": "Permitir envio por IPv6 (exige PTR e autenticação DNS)"
+    "field.outbound_ipv6": "Permitir envio por IPv6 (exige PTR e autenticação DNS)",
+    "field.antispam": "Filtro antispam de entrada",
+    "field.antispam_dns": "Verificar DNS do remetente (Cloudflare DNS por HTTPS)",
+    "field.spam_threshold": "Pontuação para Lixo eletrônico (1–100)",
+    "field.spam_blocklist": "Bloquear emails ou domínios (separados por espaço)",
+    "message.quarantined": "Mensagem suspeita enviada ao Lixo eletrônico"
   },
   "en": {
     "app.tagline": "Mail server administration",
@@ -343,7 +348,12 @@
     "console.key_id": "Key identifier",
     "console.password_changed": "Password changed; messages preserved. Restart the server to revoke existing sessions.",
     "console.help": "Passwords are read without echo. Cloudflare token via CLOUDIEMAIL_CF_TOKEN. Language via CLOUDIEMAIL_LANGUAGE or settings.",
-    "field.outbound_ipv6": "Allow IPv6 delivery (requires PTR and DNS authentication)"
+    "field.outbound_ipv6": "Allow IPv6 delivery (requires PTR and DNS authentication)",
+    "field.antispam": "Incoming spam filter",
+    "field.antispam_dns": "Check sender DNS (Cloudflare DNS over HTTPS)",
+    "field.spam_threshold": "Junk score threshold (1–100)",
+    "field.spam_blocklist": "Block emails or domains (space separated)",
+    "message.quarantined": "Suspicious message moved to Junk"
   },
   "ja": {
     "app.tagline": "メールサーバーの管理",
@@ -516,7 +526,12 @@
     "console.key_id": "鍵の識別子",
     "console.password_changed": "パスワードを変更しました。メールは保持されています。既存のセッションを無効にするにはサーバーを再起動してください。",
     "console.help": "パスワードは非表示で入力します。Cloudflare トークンは CLOUDIEMAIL_CF_TOKEN、言語は CLOUDIEMAIL_LANGUAGE または設定で指定します。",
-    "field.outbound_ipv6": "IPv6での送信を許可（PTRとDNS認証が必要）"
+    "field.outbound_ipv6": "IPv6での送信を許可（PTRとDNS認証が必要）",
+    "field.antispam": "受信迷惑メールフィルター",
+    "field.antispam_dns": "送信者のDNSを確認（Cloudflare DNS over HTTPS）",
+    "field.spam_threshold": "迷惑メールの判定スコア（1–100）",
+    "field.spam_blocklist": "拒否するアドレスまたはドメイン（スペース区切り）",
+    "message.quarantined": "疑わしいメールを迷惑メールに移動しました"
   },
   "ko": {
     "app.tagline": "메일 서버 관리",
@@ -689,7 +704,12 @@
     "console.key_id": "키 식별자",
     "console.password_changed": "비밀번호를 변경했습니다. 메일은 보존됩니다. 기존 세션을 해제하려면 서버를 다시 시작하세요.",
     "console.help": "비밀번호는 표시되지 않습니다. Cloudflare 토큰: CLOUDIEMAIL_CF_TOKEN. 언어: CLOUDIEMAIL_LANGUAGE 또는 설정.",
-    "field.outbound_ipv6": "IPv6 전송 허용 (PTR 및 DNS 인증 필요)"
+    "field.outbound_ipv6": "IPv6 전송 허용 (PTR 및 DNS 인증 필요)",
+    "field.antispam": "수신 스팸 필터",
+    "field.antispam_dns": "발신자 DNS 확인 (Cloudflare DNS over HTTPS)",
+    "field.spam_threshold": "스팸 분류 점수 (1–100)",
+    "field.spam_blocklist": "차단할 주소 또는 도메인 (공백으로 구분)",
+    "message.quarantined": "의심스러운 메일을 스팸함으로 이동했습니다"
   },
   "zh-TW": {
     "app.tagline": "郵件伺服器管理",
@@ -862,6 +882,11 @@
     "console.key_id": "金鑰識別碼",
     "console.password_changed": "密碼已變更，郵件已保留。請重新啟動伺服器以撤銷既有工作階段。",
     "console.help": "密碼輸入不會顯示。Cloudflare 權杖：CLOUDIEMAIL_CF_TOKEN。語言：CLOUDIEMAIL_LANGUAGE 或設定。",
-    "field.outbound_ipv6": "允許透過 IPv6 寄送（需要 PTR 與 DNS 驗證）"
+    "field.outbound_ipv6": "允許透過 IPv6 寄送（需要 PTR 與 DNS 驗證）",
+    "field.antispam": "收件垃圾郵件篩選器",
+    "field.antispam_dns": "檢查寄件者 DNS（Cloudflare DNS over HTTPS）",
+    "field.spam_threshold": "垃圾郵件分數門檻（1–100）",
+    "field.spam_blocklist": "封鎖郵件地址或網域（以空格分隔）",
+    "message.quarantined": "可疑郵件已移至垃圾郵件"
   }
 }

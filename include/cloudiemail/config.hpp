@@ -14,6 +14,9 @@ struct Config {
     unsigned short webmail_backend_port = 8787, submission_port = 2587;
     bool outbound_enabled = true;
     bool outbound_ipv6 = false;
+    bool antispam_enabled = true, antispam_dns = true;
+    int antispam_threshold = 5;
+    std::vector<std::string> antispam_blocklist;
     std::filesystem::path database = "data/cloudiemail.fdb", certificate = "data/tls.crt",
                           private_key = "data/tls.key", web_root = "web";
     std::string database_user = "SYSDBA", database_password_env = "CLOUDIEMAIL_DB_PASSWORD";

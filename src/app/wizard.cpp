@@ -1,6 +1,7 @@
 #include "cloudiemail/wizard.hpp"
 #include "cloudiemail/i18n.hpp"
 #include <cstdlib>
+#include <sstream>
 namespace cm {
 Wizard::Wizard(const std::filesystem::path &path) : setup_(path) {
     if (const char *language = std::getenv("CLOUDIEMAIL_LANGUAGE"))
@@ -100,7 +101,7 @@ void Wizard::form(SetupStep step) {
         } else
             action("back", "action.back");
         break;
-    case SetupStep::Preferences:
+    case SetupStep::Preferences: {
         view_.title = tr("nav.preferences");
         view_.body = tr("settings.body");
         field("language", "field.language", setup_.config.language);
@@ -119,9 +120,20 @@ void Wizard::form(SetupStep step) {
 #endif
         field("outbound", "field.outbound", setup_.config.outbound_enabled ? "1" : "0", false, true);
         field("outbound_ipv6", "field.outbound_ipv6", setup_.config.outbound_ipv6 ? "1" : "0", false, true);
+        field("antispam", "field.antispam", setup_.config.antispam_enabled ? "1" : "0", false, true);
+        field("antispam_dns", "field.antispam_dns", setup_.config.antispam_dns ? "1" : "0", false, true);
+        field("spam_threshold", "field.spam_threshold", std::to_string(setup_.config.antispam_threshold));
+        std::string blocked;
+        for (const auto &entry : setup_.config.antispam_blocklist) {
+            if (!blocked.empty())
+                blocked += ' ';
+            blocked += entry;
+        }
+        field("spam_blocklist", "field.spam_blocklist", blocked);
         action("preferences_save", "action.save");
         action("done", "action.done");
         break;
+    }
     case SetupStep::Ready:
         view_.title = tr("setup.ready_title");
         view_.body = tr("setup.ready_body");
@@ -238,6 +250,23 @@ void Wizard::perform(const std::string &action, std::map<std::string, std::strin
                 candidate.outbound_enabled = values.at("outbound") == "1";
                 if (values.contains("outbound_ipv6"))
                     candidate.outbound_ipv6 = values.at("outbound_ipv6") == "1";
+                if (values.contains("antispam"))
+                    candidate.antispam_enabled = values.at("antispam") == "1";
+                if (values.contains("antispam_dns"))
+                    candidate.antispam_dns = values.at("antispam_dns") == "1";
+                if (values.contains("spam_threshold")) {
+                    auto threshold = number("spam_threshold");
+                    if (threshold > 100)
+                        throw std::runtime_error("Invalid spam threshold");
+                    candidate.antispam_threshold = static_cast<int>(threshold);
+                }
+                if (values.contains("spam_blocklist")) {
+                    candidate.antispam_blocklist.clear();
+                    std::istringstream input(values.at("spam_blocklist"));
+                    std::string entry;
+                    while (input >> entry)
+                        candidate.antispam_blocklist.push_back(entry);
+                }
                 candidate.validate();
                 candidate.save(setup_.path());
                 setup_.config = candidate;

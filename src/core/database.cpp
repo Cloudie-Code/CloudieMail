@@ -1,8 +1,11 @@
 #include "cloudiemail/database.hpp"
+#include <algorithm>
+#include <chrono>
 #include <cstdlib>
 #include <cstring>
 #include <ibase.h>
 #include <limits>
+#include <set>
 #include <stdexcept>
 
 namespace cm {
@@ -280,7 +283,8 @@ Database::Database(const Config &config, bool create) : impl_(std::make_unique<I
                 status);
         Impl::Transaction tx(*impl_);
         auto rows = impl_->query(tx, "SELECT VERSION FROM CM_SCHEMA");
-        if (rows.size() != 1 || (rows[0][0] != "1" && rows[0][0] != "2"))
+        if (rows.size() != 1 ||
+            (rows[0][0] != "1" && rows[0][0] != "2" && rows[0][0] != "3" && rows[0][0] != "4"))
             throw std::runtime_error("Versao de banco incompatível");
         tx.commit();
     }
@@ -309,6 +313,38 @@ Database::Database(const Config &config, bool create) : impl_(std::make_unique<I
         }
         tx.commit();
     }
+    {
+        Impl::Transaction tx(*impl_);
+        auto version = impl_->query(tx, "SELECT VERSION FROM CM_SCHEMA WITH LOCK");
+        if (version.at(0).at(0) == "2") {
+            for (const auto *sql : {"ALTER TABLE CM_MESSAGES ADD IMAP_FLAGS VARCHAR(2048) CHARACTER SET UTF8 "
+                                    "DEFAULT '[]' NOT NULL",
+                                    "ALTER TABLE CM_MESSAGES ADD ARRIVED BIGINT DEFAULT 0 NOT NULL",
+                                    "ALTER TABLE CM_MESSAGES ADD RECENT_FLAG SMALLINT DEFAULT 1 NOT NULL",
+                                    "CREATE TABLE CM_SUBSCRIPTIONS (EMAIL VARCHAR(254) CHARACTER SET ASCII "
+                                    "NOT NULL REFERENCES CM_ACCOUNTS(EMAIL), NAME VARCHAR(128) CHARACTER SET "
+                                    "UTF8 NOT NULL, PRIMARY KEY (EMAIL,NAME))",
+                                    "UPDATE CM_SCHEMA SET VERSION = 3"})
+                impl_->query(tx, sql);
+        }
+        tx.commit();
+    }
+    {
+        Impl::Transaction data(*impl_);
+        if (impl_->query(data, "SELECT VERSION FROM CM_SCHEMA WITH LOCK")[0][0] == "3") {
+            impl_->query(data, "UPDATE CM_MESSAGES SET ARRIVED = DATEDIFF(SECOND FROM TIMESTAMP '1970-01-01 "
+                               "00:00:00' TO RECEIVED_AT) WHERE ARRIVED = 0");
+            for (const auto &account : impl_->query(data, "SELECT EMAIL FROM CM_ACCOUNTS"))
+                for (const auto *name : {"INBOX", "Sent", "Drafts", "Trash", "Junk"})
+                    impl_->query(
+                        data,
+                        "UPDATE OR INSERT INTO CM_FOLDERS (EMAIL,NAME) VALUES (?,?) MATCHING (EMAIL,NAME)",
+                        {Param(account[0]), Param(name)});
+            impl_->query(data, "INSERT INTO CM_SUBSCRIPTIONS (EMAIL,NAME) SELECT EMAIL,NAME FROM CM_FOLDERS");
+            impl_->query(data, "UPDATE CM_SCHEMA SET VERSION=4");
+        }
+        data.commit();
+    }
     wipe(dpb);
 }
 Database::~Database() = default;
@@ -317,6 +353,12 @@ void Database::add_account(const Json &doc) {
     Impl::Transaction tx(*impl_);
     impl_->query(tx, "INSERT INTO CM_ACCOUNTS (EMAIL, KEY_DOC) VALUES (?, ?)",
                  {Param(email_address(doc.at("email"))), Param(doc.dump(), true)});
+    for (const auto *name : {"INBOX", "Sent", "Drafts", "Trash", "Junk"}) {
+        impl_->query(tx, "INSERT INTO CM_FOLDERS (EMAIL,NAME) VALUES (?,?)",
+                     {Param(doc.at("email")), Param(name)});
+        impl_->query(tx, "INSERT INTO CM_SUBSCRIPTIONS (EMAIL,NAME) VALUES (?,?)",
+                     {Param(doc.at("email")), Param(name)});
+    }
     tx.commit();
 }
 std::optional<Json> Database::account(const std::string &email) {
@@ -355,14 +397,17 @@ void Database::deliver(const std::vector<Delivery> &deliveries, std::size_t quot
                          {Param(d.email)});
         if (std::stoull(total[0][0]) + d.size > quota || std::stoull(total[0][1]) >= 1000)
             throw std::runtime_error("Quota da caixa excedida");
+        impl_->query(tx, "UPDATE OR INSERT INTO CM_FOLDERS (EMAIL,NAME) VALUES (?,?) MATCHING (EMAIL,NAME)",
+                     {Param(d.email), Param(d.folder)});
         impl_->query(
             tx,
-            "INSERT INTO CM_MESSAGES (UID, EMAIL, OCTETS, PAYLOAD, FOLDER) VALUES (NEXT VALUE FOR CM_UID, ?, "
-            "?, ?, ?)",
+            "INSERT INTO CM_MESSAGES (UID, EMAIL, OCTETS, PAYLOAD, FOLDER, ARRIVED) VALUES (NEXT VALUE FOR "
+            "CM_UID, ?, "
+            "?, ?, ?, ?)",
             {Param(d.email), Param(std::to_string(d.size)),
              Param(std::string(reinterpret_cast<const char *>(d.ciphertext.data()), d.ciphertext.size()),
                    true),
-             Param(d.folder)});
+             Param(d.folder), Param(std::to_string(std::time(nullptr)))});
     }
     for (const auto &mail : outgoing) {
         impl_->query(tx, "SELECT EMAIL FROM CM_ACCOUNTS WHERE EMAIL = ? WITH LOCK", {Param(mail.sender)});
@@ -381,21 +426,32 @@ void Database::deliver(const std::vector<Delivery> &deliveries, std::size_t quot
     }
     tx.commit();
 }
-std::vector<MessageInfo> Database::messages(const std::string &email, const std::string &folder) {
+std::vector<MessageInfo> Database::messages(const std::string &email, const std::string &folder,
+                                            bool claim_recent) {
     std::lock_guard lock(mutex_);
     Impl::Transaction tx(*impl_);
-    auto rows = folder.empty() ? impl_->query(tx,
-                                              "SELECT UID,OCTETS,SEEN,FOLDER,LABELS,FLAGGED FROM CM_MESSAGES "
-                                              "WHERE EMAIL = ? ORDER BY UID",
-                                              {Param(email)})
-                               : impl_->query(tx,
-                                              "SELECT UID,OCTETS,SEEN,FOLDER,LABELS,FLAGGED FROM CM_MESSAGES "
-                                              "WHERE EMAIL = ? AND FOLDER = ? ORDER BY UID",
-                                              {Param(email), Param(folder)});
+    auto rows =
+        folder.empty()
+            ? impl_->query(tx,
+                           "SELECT UID,OCTETS,SEEN,FOLDER,LABELS,FLAGGED,IMAP_FLAGS,ARRIVED,RECENT_FLAG FROM "
+                           "CM_MESSAGES "
+                           "WHERE EMAIL = ? ORDER BY UID",
+                           {Param(email)})
+            : impl_->query(tx,
+                           "SELECT UID,OCTETS,SEEN,FOLDER,LABELS,FLAGGED,IMAP_FLAGS,ARRIVED,RECENT_FLAG FROM "
+                           "CM_MESSAGES "
+                           "WHERE EMAIL = ? AND FOLDER = ? ORDER BY UID",
+                           {Param(email), Param(folder)});
     std::vector<MessageInfo> result;
     for (const auto &row : rows)
         result.push_back({std::stoull(row[0]), static_cast<std::size_t>(std::stoull(row[1])), row[2] == "1",
-                          row[3], Json::parse(row[4]), row[5] == "1"});
+                          row[3], Json::parse(row[4]), row[5] == "1", Json::parse(row[6]), std::stoll(row[7]),
+                          row[8] == "1"});
+    if (claim_recent)
+        for (const auto &message : result)
+            if (message.recent)
+                impl_->query(tx, "UPDATE CM_MESSAGES SET RECENT_FLAG=0 WHERE EMAIL=? AND UID=?",
+                             {Param(email), Param(std::to_string(message.uid))});
     tx.commit();
     return result;
 }
@@ -449,8 +505,12 @@ bool builtin_folder(const std::string &name) {
 void valid_name(const std::string &name, std::size_t limit = 128) {
     if (name.empty() || name.size() > limit || name.front() == ' ' || name.back() == ' ')
         throw std::runtime_error("Invalid folder or label name");
+    if (name.starts_with('/') || name.ends_with('/') || name.find("//") != name.npos ||
+        ("/" + name + "/").find("/../") != std::string::npos ||
+        ("/" + name + "/").find("/./") != std::string::npos)
+        throw std::runtime_error("Invalid mailbox hierarchy");
     for (unsigned char c : name)
-        if (c < 32 || c == 127 || c == '/' || c == '\\')
+        if (c < 32 || c == 127 || c == '\\')
             throw std::runtime_error("Invalid folder or label name");
     (void)Json(name).dump(); // Reject invalid UTF-8 before passing it to Firebird.
 }
@@ -459,7 +519,7 @@ Json Database::folders(const std::string &email) {
     std::lock_guard lock(mutex_);
     Impl::Transaction tx(*impl_);
     Json result = Json::array();
-    std::vector<std::string> names{"INBOX", "Sent", "Drafts", "Trash", "Junk"};
+    std::vector<std::string> names;
     for (const auto &row :
          impl_->query(tx, "SELECT NAME FROM CM_FOLDERS WHERE EMAIL = ? ORDER BY NAME", {Param(email)}))
         names.push_back(row[0]);
@@ -478,8 +538,7 @@ Json Database::folders(const std::string &email) {
 }
 void Database::create_folder(const std::string &email, const std::string &name) {
     valid_name(name);
-    if (builtin_folder(name))
-        throw std::runtime_error("System folder already exists");
+
     std::lock_guard lock(mutex_);
     Impl::Transaction tx(*impl_);
     impl_->query(tx, "SELECT EMAIL FROM CM_ACCOUNTS WHERE EMAIL = ? WITH LOCK", {Param(email)});
@@ -492,34 +551,61 @@ void Database::create_folder(const std::string &email, const std::string &name) 
 void Database::rename_folder(const std::string &email, const std::string &name,
                              const std::string &replacement) {
     valid_name(replacement);
-    if (builtin_folder(name) || builtin_folder(replacement))
-        throw std::runtime_error("System folder is protected");
+    if (replacement == "INBOX" || replacement.starts_with(name + "/"))
+        throw std::runtime_error("Invalid mailbox rename");
     std::lock_guard lock(mutex_);
     Impl::Transaction tx(*impl_);
-    if (impl_
-            ->query(tx, "SELECT NAME FROM CM_FOLDERS WHERE EMAIL = ? AND NAME = ? WITH LOCK",
-                    {Param(email), Param(name)})
-            .empty())
-        throw std::runtime_error("Folder not found");
-    impl_->query(tx, "UPDATE CM_FOLDERS SET NAME = ? WHERE EMAIL = ? AND NAME = ?",
-                 {Param(replacement), Param(email), Param(name)});
-    impl_->query(tx, "UPDATE CM_MESSAGES SET FOLDER = ? WHERE EMAIL = ? AND FOLDER = ?",
-                 {Param(replacement), Param(email), Param(name)});
+    impl_->query(tx, "SELECT EMAIL FROM CM_ACCOUNTS WHERE EMAIL=? WITH LOCK", {Param(email)});
+    auto rows = impl_->query(tx, "SELECT NAME FROM CM_FOLDERS WHERE EMAIL=?", {Param(email)});
+    std::set<std::string> names;
+    for (auto &r : rows)
+        names.insert(r[0]);
+    bool has_child =
+        std::any_of(names.begin(), names.end(), [&](const auto &n) { return n.starts_with(name + "/"); });
+    if ((!names.contains(name) && !has_child) || names.contains(replacement))
+        throw std::runtime_error("Mailbox missing or destination exists");
+    if (name == "INBOX") {
+        impl_->query(tx, "INSERT INTO CM_FOLDERS (EMAIL,NAME) VALUES (?,?)",
+                     {Param(email), Param(replacement)});
+        impl_->query(
+            tx, "UPDATE CM_MESSAGES SET FOLDER=?,UID=NEXT VALUE FOR CM_UID WHERE EMAIL=? AND FOLDER='INBOX'",
+            {Param(replacement), Param(email)});
+    } else {
+        std::vector<std::pair<std::string, std::string>> changes;
+        for (auto &old : names)
+            if (old == name || old.starts_with(name + "/")) {
+                auto next = replacement + old.substr(name.size());
+                valid_name(next);
+                if (names.contains(next))
+                    throw std::runtime_error("Destination exists");
+                changes.emplace_back(old, next);
+            }
+        for (auto &[old, next] : changes) {
+            impl_->query(tx, "UPDATE CM_FOLDERS SET NAME=? WHERE EMAIL=? AND NAME=?",
+                         {Param(next), Param(email), Param(old)});
+            impl_->query(tx, "UPDATE CM_MESSAGES SET FOLDER=? WHERE EMAIL=? AND FOLDER=?",
+                         {Param(next), Param(email), Param(old)});
+        }
+    }
     tx.commit();
 }
-void Database::remove_folder(const std::string &email, const std::string &name) {
-    if (builtin_folder(name))
-        throw std::runtime_error("System folder is protected");
+void Database::remove_folder(const std::string &email, const std::string &name, bool purge) {
+    if (name == "INBOX")
+        throw std::runtime_error("INBOX is protected");
     std::lock_guard lock(mutex_);
     Impl::Transaction tx(*impl_);
-    if (std::stoull(impl_->query(tx, "SELECT COUNT(*) FROM CM_MESSAGES WHERE EMAIL = ? AND FOLDER = ?",
+    if (!purge &&
+        std::stoull(impl_->query(tx, "SELECT COUNT(*) FROM CM_MESSAGES WHERE EMAIL = ? AND FOLDER = ?",
                                  {Param(email), Param(name)})[0][0]))
         throw std::runtime_error("Folder must be empty");
+    if (purge)
+        impl_->query(tx, "DELETE FROM CM_MESSAGES WHERE EMAIL = ? AND FOLDER = ?",
+                     {Param(email), Param(name)});
     impl_->query(tx, "DELETE FROM CM_FOLDERS WHERE EMAIL = ? AND NAME = ?", {Param(email), Param(name)});
     tx.commit();
 }
-void Database::organize(const std::string &email, std::uint64_t uid, const std::string &folder,
-                        const Json &labels, bool flagged) {
+std::uint64_t Database::organize(const std::string &email, std::uint64_t uid, const std::string &folder,
+                                 const Json &labels, bool flagged) {
     valid_name(folder);
     if (!labels.is_array() || labels.size() > 10)
         throw std::runtime_error("Invalid labels");
@@ -527,20 +613,24 @@ void Database::organize(const std::string &email, std::uint64_t uid, const std::
         valid_name(label.get<std::string>(), 64);
     std::lock_guard lock(mutex_);
     Impl::Transaction tx(*impl_);
-    if (!builtin_folder(folder) && impl_
-                                       ->query(tx, "SELECT NAME FROM CM_FOLDERS WHERE EMAIL = ? AND NAME = ?",
-                                               {Param(email), Param(folder)})
-                                       .empty())
-        throw std::runtime_error("Folder not found");
     if (impl_
-            ->query(tx, "SELECT UID FROM CM_MESSAGES WHERE EMAIL = ? AND UID = ? WITH LOCK",
-                    {Param(email), Param(std::to_string(uid))})
+            ->query(tx, "SELECT NAME FROM CM_FOLDERS WHERE EMAIL=? AND NAME=?", {Param(email), Param(folder)})
             .empty())
+        throw std::runtime_error("Folder not found");
+    auto old = impl_->query(tx, "SELECT UID,FOLDER FROM CM_MESSAGES WHERE EMAIL=? AND UID=? WITH LOCK",
+                            {Param(email), Param(std::to_string(uid))});
+    if (old.empty())
         throw std::runtime_error("Message not found");
-    impl_->query(tx, "UPDATE CM_MESSAGES SET FOLDER = ?, LABELS = ?, FLAGGED = ? WHERE EMAIL = ? AND UID = ?",
-                 {Param(folder), Param(labels.dump()), Param(flagged ? "1" : "0"), Param(email),
-                  Param(std::to_string(uid))});
+    auto next = uid;
+    if (old[0][1] != folder)
+        next = std::stoull(impl_->query(tx, "SELECT NEXT VALUE FOR CM_UID FROM RDB$DATABASE")[0][0]);
+    if (next > UINT32_MAX)
+        throw std::runtime_error("UID space exhausted");
+    impl_->query(tx, "UPDATE CM_MESSAGES SET UID=?,FOLDER=?,LABELS=?,FLAGGED=? WHERE EMAIL=? AND UID=?",
+                 {Param(std::to_string(next)), Param(folder), Param(labels.dump()),
+                  Param(flagged ? "1" : "0"), Param(email), Param(std::to_string(uid))});
     tx.commit();
+    return next;
 }
 std::vector<QueuedMail> Database::due_mail(std::int64_t now) {
     std::lock_guard lock(mutex_);
@@ -603,4 +693,162 @@ Json Database::delivery_status(const std::string &email) {
     tx.commit();
     return result;
 }
+void Database::subscribe(const std::string &email, const std::string &folder, bool enabled) {
+    valid_name(folder);
+    std::lock_guard lock(mutex_);
+    Impl::Transaction tx(*impl_);
+    if (enabled) {
+        auto count =
+            impl_->query(tx, "SELECT COUNT(*) FROM CM_SUBSCRIPTIONS WHERE EMAIL = ?", {Param(email)});
+        if (std::stoull(count[0][0]) >= 256)
+            throw std::runtime_error("Subscription limit");
+        impl_->query(tx,
+                     "UPDATE OR INSERT INTO CM_SUBSCRIPTIONS (EMAIL,NAME) VALUES (?,?) MATCHING (EMAIL,NAME)",
+                     {Param(email), Param(folder)});
+    } else
+        impl_->query(tx, "DELETE FROM CM_SUBSCRIPTIONS WHERE EMAIL = ? AND NAME = ?",
+                     {Param(email), Param(folder)});
+    tx.commit();
+}
+Json Database::subscriptions(const std::string &email) {
+    std::lock_guard lock(mutex_);
+    Impl::Transaction tx(*impl_);
+    Json result = Json::array();
+    for (auto &r :
+         impl_->query(tx, "SELECT NAME FROM CM_SUBSCRIPTIONS WHERE EMAIL = ? ORDER BY NAME", {Param(email)}))
+        result.push_back(r[0]);
+    tx.commit();
+    return result;
+}
+std::uint64_t Database::append(const Delivery &d, std::size_t quota, const Json &flags, std::int64_t date) {
+    std::lock_guard lock(mutex_);
+    Impl::Transaction tx(*impl_);
+    impl_->query(tx, "SELECT EMAIL FROM CM_ACCOUNTS WHERE EMAIL=? WITH LOCK", {Param(d.email)});
+    if (impl_
+            ->query(tx, "SELECT NAME FROM CM_FOLDERS WHERE EMAIL=? AND NAME=?",
+                    {Param(d.email), Param(d.folder)})
+            .empty())
+        throw MailboxError("[TRYCREATE] Mailbox not found");
+    auto total = impl_->query(tx, "SELECT COALESCE(SUM(OCTETS),0),COUNT(*) FROM CM_MESSAGES WHERE EMAIL=?",
+                              {Param(d.email)});
+    if (std::stoull(total[0][0]) + d.size > quota || std::stoull(total[0][1]) >= 1000)
+        throw MailboxError("[OVERQUOTA] Mailbox quota exceeded");
+    auto f = flags.get<std::set<std::string>>();
+    bool seen = f.erase("\\Seen"), flagged = f.erase("\\Flagged");
+    auto uid = std::stoull(impl_->query(tx, "SELECT NEXT VALUE FOR CM_UID FROM RDB$DATABASE")[0][0]);
+    impl_->query(tx,
+                 "INSERT INTO CM_MESSAGES (UID,EMAIL,OCTETS,PAYLOAD,FOLDER,SEEN,FLAGGED,IMAP_FLAGS,ARRIVED) "
+                 "VALUES (?,?,?,?,?,?,?,?,?)",
+                 {Param(std::to_string(uid)), Param(d.email), Param(std::to_string(d.size)),
+                  Param(std::string(d.ciphertext.begin(), d.ciphertext.end()), true), Param(d.folder),
+                  Param(seen ? "1" : "0"), Param(flagged ? "1" : "0"), Param(Json(f).dump()),
+                  Param(std::to_string(date))});
+    if (uid > UINT32_MAX)
+        throw std::runtime_error("UID space exhausted");
+    tx.commit();
+    return uid;
+}
+void Database::store_flags(const std::string &email, const std::string &folder,
+                           const std::vector<std::uint64_t> &uids, const Json &flags, int mode) {
+    auto requested = flags.get<std::set<std::string>>();
+    std::lock_guard lock(mutex_);
+    Impl::Transaction tx(*impl_);
+    for (auto uid : uids) {
+        auto rows = impl_->query(
+            tx,
+            "SELECT SEEN,FLAGGED,IMAP_FLAGS FROM CM_MESSAGES WHERE EMAIL=? AND FOLDER=? AND UID=? WITH LOCK",
+            {Param(email), Param(folder), Param(std::to_string(uid))});
+        if (rows.empty())
+            continue;
+        auto f = Json::parse(rows[0][2]).get<std::set<std::string>>();
+        if (rows[0][0] == "1")
+            f.insert("\\Seen");
+        if (rows[0][1] == "1")
+            f.insert("\\Flagged");
+        if (mode == 0)
+            f = requested;
+        else
+            for (auto &v : requested) {
+                if (mode > 0)
+                    f.insert(v);
+                else
+                    f.erase(v);
+            }
+        bool seen = f.erase("\\Seen"), flagged = f.erase("\\Flagged");
+        auto serialized = Json(f).dump();
+        if (serialized.size() > 2000)
+            throw std::runtime_error("Too many flags");
+        impl_->query(
+            tx, "UPDATE CM_MESSAGES SET SEEN=?,FLAGGED=?,IMAP_FLAGS=? WHERE EMAIL=? AND FOLDER=? AND UID=?",
+            {Param(seen ? "1" : "0"), Param(flagged ? "1" : "0"), Param(serialized), Param(email),
+             Param(folder), Param(std::to_string(uid))});
+    }
+    tx.commit();
+}
+std::vector<std::pair<std::uint64_t, std::uint64_t>>
+Database::transfer(const std::string &email, const std::string &source, const std::string &destination,
+                   const std::vector<std::uint64_t> &uids, bool move, std::size_t quota) {
+    std::lock_guard lock(mutex_);
+    Impl::Transaction tx(*impl_);
+    impl_->query(tx, "SELECT EMAIL FROM CM_ACCOUNTS WHERE EMAIL=? WITH LOCK", {Param(email)});
+    if (impl_
+            ->query(tx, "SELECT NAME FROM CM_FOLDERS WHERE EMAIL=? AND NAME=?",
+                    {Param(email), Param(destination)})
+            .empty())
+        throw MailboxError("[TRYCREATE] Mailbox not found");
+    auto usage = impl_->query(tx, "SELECT COALESCE(SUM(OCTETS),0),COUNT(*) FROM CM_MESSAGES WHERE EMAIL=?",
+                              {Param(email)});
+    auto bytes = std::stoull(usage[0][0]), count = std::stoull(usage[0][1]);
+    std::vector<std::pair<std::uint64_t, std::uint64_t>> result;
+    for (auto uid : uids) {
+        auto r =
+            impl_->query(tx, "SELECT OCTETS FROM CM_MESSAGES WHERE EMAIL=? AND FOLDER=? AND UID=? WITH LOCK",
+                         {Param(email), Param(source), Param(std::to_string(uid))});
+        if (r.empty())
+            continue;
+        if (!move) {
+            bytes += std::stoull(r[0][0]);
+            ++count;
+        }
+        if (bytes > quota || count > 1000)
+            throw MailboxError("[OVERQUOTA] Mailbox quota exceeded");
+        auto next = std::stoull(impl_->query(tx, "SELECT NEXT VALUE FOR CM_UID FROM RDB$DATABASE")[0][0]);
+        if (next > UINT32_MAX)
+            throw std::runtime_error("UID space exhausted");
+        impl_->query(
+            tx,
+            "INSERT INTO CM_MESSAGES "
+            "(UID,EMAIL,OCTETS,SEEN,PAYLOAD,RECEIVED_AT,FOLDER,LABELS,FLAGGED,IMAP_FLAGS,ARRIVED,RECENT_FLAG)"
+            " SELECT ?,EMAIL,OCTETS,SEEN,PAYLOAD,RECEIVED_AT,?,LABELS,FLAGGED,IMAP_FLAGS,ARRIVED,1 FROM "
+            "CM_MESSAGES WHERE EMAIL=? AND FOLDER=? AND UID=?",
+            {Param(std::to_string(next)), Param(destination), Param(email), Param(source),
+             Param(std::to_string(uid))});
+        if (move)
+            impl_->query(tx, "DELETE FROM CM_MESSAGES WHERE EMAIL=? AND UID=?",
+                         {Param(email), Param(std::to_string(uid))});
+        result.emplace_back(uid, next);
+    }
+    tx.commit();
+    return result;
+}
+std::vector<std::uint64_t> Database::expunge(const std::string &email, const std::string &folder,
+                                             const std::vector<std::uint64_t> *uids) {
+    std::lock_guard lock(mutex_);
+    Impl::Transaction tx(*impl_);
+    auto rows = impl_->query(
+        tx, "SELECT UID,IMAP_FLAGS FROM CM_MESSAGES WHERE EMAIL=? AND FOLDER=? ORDER BY UID WITH LOCK",
+        {Param(email), Param(folder)});
+    std::vector<std::uint64_t> result;
+    for (auto &r : rows) {
+        auto uid = std::stoull(r[0]);
+        auto f = Json::parse(r[1]).get<std::set<std::string>>();
+        if (f.contains("\\Deleted") && (!uids || std::find(uids->begin(), uids->end(), uid) != uids->end())) {
+            impl_->query(tx, "DELETE FROM CM_MESSAGES WHERE EMAIL=? AND UID=?", {Param(email), Param(r[0])});
+            result.push_back(uid);
+        }
+    }
+    tx.commit();
+    return result;
+}
+
 } // namespace cm

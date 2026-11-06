@@ -88,6 +88,7 @@ def linux(destination):
         "cloudiemail-setup-tests",
         "cloudiemail-config-tests",
         "cloudiemail-mail-tests",
+        "cloudiemail-protocol-tests",
     ):
         target = destination / "bin" / name
         copy(LINUX_BUILD / name, target)
@@ -287,6 +288,7 @@ def windows(destination):
         "cloudiemail-acl-tests.exe",
         "cloudiemail-http-tests.exe",
         "cloudiemail-config-tests.exe",
+        "cloudiemail-protocol-tests.exe",
     ):
         copy(WINDOWS_BUILD / name, destination / "bin" / name)
     copy(ROOT / ".deps/lego/windows/lego.exe", destination / "bin/lego.exe")
@@ -361,7 +363,7 @@ def windows(destination):
             "nlohmann-json": "3.12.0 headers",
         },
         "lego": "5.6.0 official Windows amd64 binary",
-        "validation": "Crypto tested with Wine; Firebird embedded blocked in Wine; native Windows pending",
+        "validation": "Crypto, MIME/antispam and configuration tested with Wine; native Windows/iOS use reported by maintainer; automated native failure matrix pending",
     }
 
 

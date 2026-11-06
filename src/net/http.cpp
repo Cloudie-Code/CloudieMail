@@ -450,7 +450,7 @@ void http(HttpStream &c, Server &server) {
                 if (r.method == "DELETE" && data.value("permanent", false))
                     server.database().erase(login.email, {uid});
                 else
-                    server.database().organize(
+                    uid = server.database().organize(
                         login.email, uid,
                         r.method == "DELETE" ? "Trash" : data.value("folder", found->folder),
                         data.value("labels", found->labels), data.value("flagged", found->flagged));

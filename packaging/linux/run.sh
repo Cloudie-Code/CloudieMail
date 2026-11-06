@@ -4,7 +4,7 @@ cm_bundle_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 cm_program="${1:-cloudiemail}"
 shift || true
 case "$cm_program" in
-  cloudiemail|cloudiemail-gui|cloudiemail-tests|cloudiemail-setup-tests|cloudiemail-config-tests|cloudiemail-mail-tests|openssl|lego) ;;
+  cloudiemail|cloudiemail-gui|cloudiemail-tests|cloudiemail-setup-tests|cloudiemail-config-tests|cloudiemail-mail-tests|cloudiemail-protocol-tests|openssl|lego) ;;
   *) printf 'Programa desconhecido.\n' >&2; exit 2 ;;
 esac
 export FIREBIRD="$cm_bundle_root/runtime/firebird"

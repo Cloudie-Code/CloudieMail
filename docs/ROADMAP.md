@@ -1,14 +1,14 @@
 # Próximas versões
 
-A versão 0.1.0 reúne o servidor, as interfaces Linux/Windows, o assistente e o webmail. O foco das próximas versões é interoperabilidade, operação contínua e segurança.
+A versão 0.2.0 acrescenta pastas e operações IMAP, sincronização IDLE e filtro antispam ao servidor, às interfaces e ao webmail. O foco das próximas versões é interoperabilidade, operação contínua e segurança.
 
 ## Protocolos e entrega
 
-- Completar IMAP: pastas, APPEND/COPY/MOVE, ENVELOPE/BODYSTRUCTURE, literais, flags, busca e IDLE.
-- Testar Apple Mail, Thunderbird e Outlook com caixas reais e alterações simultâneas.
+- Ampliar as extensões IMAP com CONDSTORE/QRESYNC e UTF8=ACCEPT.
+- Ampliar os cenários do Mail do iOS já utilizado pelo mantenedor; testar também Thunderbird e Outlook.
 - Completar o lock de caixa POP3 e o comportamento de UPDATE após falhas.
 - Implementar DSN/bounces automáticos e ampliar testes de entrega externa.
-- Validar SPF, DKIM e DMARC de entrada; acrescentar antispam e controles de abuso.
+- Ampliar o antispam com SPF macros/PTR, alinhamento DMARC relaxado, reputação e aprendizado opcional.
 - Diagnosticar PTR, propagação DNS e conectividade SMTP pelo programa.
 
 ## Operação

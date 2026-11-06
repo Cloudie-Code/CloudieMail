@@ -51,6 +51,15 @@ int main() {
         legacy.outbound_ipv6 = false;
         legacy.save(path);
         check(!cm::Config::load(path).outbound_ipv6, "IPv4-only choice not persisted");
+        check(legacy.antispam_enabled && legacy.antispam_dns && legacy.antispam_threshold == 5,
+              "Legacy settings do not enable antispam defaults");
+        legacy.antispam_threshold = 7;
+        legacy.antispam_blocklist = {"blocked.example", "spam@blocked.example"};
+        legacy.save(path);
+        auto spam_saved = cm::Config::load(path);
+        check(spam_saved.antispam_threshold == 7 &&
+                  spam_saved.antispam_blocklist == legacy.antispam_blocklist,
+              "Antispam settings not persisted");
         cm::Wizard preferences(path);
         preferences.perform("preferences", {});
         bool ipv6_checkbox = false;
@@ -58,6 +67,11 @@ int main() {
             if (field.id == "outbound_ipv6")
                 ipv6_checkbox = field.checkbox && field.value == "0";
         check(ipv6_checkbox, "IPv6 delivery must be an explicit opt-in in preferences");
+        bool spam_checkbox = false;
+        for (const auto &field : preferences.view().fields)
+            if (field.id == "antispam")
+                spam_checkbox = field.checkbox && field.value == "1";
+        check(spam_checkbox, "Antispam setting not exposed in GUI/console");
         for (const auto &driver : {"invalid", "http_sys"}) {
             cm::save_json(path, {{"webmail_driver", driver}});
             bool accepted = false;

@@ -95,14 +95,17 @@ int main(int argc, char **argv) {
             check(db.folders("alice@example.test").size() == 5, "Default folders missing");
             db.create_folder("alice@example.test", "仕事");
             db.create_folder("bob@example.test", "仕事");
-            rejects([&] { db.rename_folder("alice@example.test", "INBOX", "Other"); },
-                    "System folder renamed");
+            rejects([&] { db.rename_folder("alice@example.test", "Sent", "INBOX"); },
+                    "Rename overwrote INBOX");
             rejects([&] { db.create_folder("alice@example.test", "../bad"); }, "Invalid folder accepted");
             cm::Delivery delivery{"alice@example.test", cm::seal_message(alice.document, message),
                                   message.size(), "INBOX"};
             db.deliver({delivery}, 1048576, {mail});
             auto uid = db.messages("alice@example.test")[0].uid;
             db.organize("alice@example.test", uid, "仕事", cm::Json::array({"重要", "Work"}), true);
+            auto moved_uid = db.messages("alice@example.test", "仕事")[0].uid;
+            check(moved_uid > uid, "Move reused IMAP UID");
+            uid = moved_uid;
             check(db.messages("alice@example.test").empty() &&
                       db.messages("alice@example.test", "仕事").size() == 1,
                   "Move failed");

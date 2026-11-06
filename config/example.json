@@ -19,5 +19,9 @@
   "submission_port": 2587,
   "outbound_enabled": true,
   "outbound_ipv6": false,
-  "webmail_backend_port": 8787
+  "webmail_backend_port": 8787,
+  "antispam_enabled": true,
+  "antispam_dns": true,
+  "antispam_threshold": 5,
+  "antispam_blocklist": []
 }

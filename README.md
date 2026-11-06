@@ -4,7 +4,7 @@ Servidor de email para Linux e Windows, com administração por interface gráfi
 
 [Baixar a versão mais recente](https://github.com/Cloudie-Code/CloudieMail/releases) · [Configuração](docs/CONFIGURATION.md) · [Compilação](docs/BUILDING.md) · [Segurança](docs/SECURITY.md)
 
-> **v0.2.0:** IMAP com pastas, anexos, busca, flags persistentes e sincronização IDLE, além de filtro antispam integrado. O mantenedor utiliza o servidor no Windows com o Mail do iOS. Veja os [recursos de IMAP e antispam](docs/IMAP-ANTISPAM.md) e os [testes da versão](docs/STATUS.md).
+> **v0.2.0:** IMAP com pastas, anexos, busca, flags persistentes e sincronização IDLE, além de filtro antispam integrado. Testado em servidor no Windows com o Mail do iOS. Veja os [recursos de IMAP e antispam](docs/IMAP-ANTISPAM.md) e os [testes da versão](docs/STATUS.md).
 
 ## Interface Linux
 

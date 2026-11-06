@@ -1,0 +1,30 @@
+CloudieMail 0.1.0 — pré-release
+
+Linux: abra CloudieMail.sh. Windows: abra CloudieMail.cmd.
+Console.sh ou Console.cmd abre o assistente de terminal.
+
+Configure domínio/rede, DNS, certificado e primeira conta. O servidor permanece
+parado até você clicar em Iniciar. Para clientes de email, use mail.<domínio>,
+email completo e senha da conta, com IMAPS/SMTPS nas portas configuradas.
+
+O pacote inclui Firebird, webmail, Lego e dependências. Não basta copiar só um EXE
+para uma instalação nova. Consulte docs/CONFIGURATION.md e docs/BUILDING.md.
+
+O envio direto precisa de saída TCP 25, DNS reverso e SPF/DKIM corretos.
+IPv4 é o padrão; IPv6 precisa ser habilitado nas preferências após preparar o DNS.
+Cloudflare configura DNS e certificados, mas não transporta SMTP comum.
+
+Linux: o pacote exige x86-64-v3 e kernel 6.1+. GTK4 e outras bibliotecas são
+incluídas. Apache é opcional e deve estar instalado no sistema para a integração.
+Windows: MSVC /MT, com runtime Firebird separado. HTTP.sys permite compartilhar
+HTTPS com outros sites; preparar as reservas e o certificado exige administrador.
+
+Antes de atualizar, encerre o servidor e faça backup de config/, data/ e dos
+certificados que estejam fora dessas pastas. Não recrie contas ou o banco.
+
+Esta versão tem IMAP parcial, não inclui antispam de entrada nem renovação
+agendada de certificados. A homologação completa no Windows nativo está pendente.
+Leia docs/STATUS.md e docs/SECURITY.md antes de usar em ambiente público.
+
+Código: https://github.com/Cloudie-Code/CloudieMail
+Licença do projeto: MIT. Licenças de terceiros: licenses/ e THIRD-PARTY.json.

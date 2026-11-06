@@ -1,0 +1,5 @@
+{
+  "name": "cloudiemail",
+  "version-string": "0.1.0-dev",
+  "dependencies": ["libsodium", "openssl", "curl", "nlohmann-json"]
+}

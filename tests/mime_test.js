@@ -1,0 +1,16 @@
+'use strict';
+const assert = require('node:assert/strict');
+const mime = require('../web/mime.js');
+const parse = text => mime.parse(new TextEncoder().encode(text));
+assert.equal(mime.header('=?UTF-8?B?44GT44KT44Gr44Gh44Gv?='), 'こんにちは');
+assert.equal(mime.header('=?UTF-8?Q?Ol=C3=A1?=\r\n =?UTF-8?Q?_mundo?='), 'Olá mundo');
+assert.equal(parse('Content-Type: text/plain; charset=iso-8859-1\r\nContent-Transfer-Encoding: quoted-printable\r\n\r\nOl=E1').text,'Olá');
+assert.equal(parse('Content-Type: text/plain\r\nContent-Transfer-Encoding: base64\r\n\r\nT2zDoQ==').text,'Olá');
+const html=parse('Content-Type: text/html\r\n\r\n<script>throw new Error("executed")</script><img src="https://tracker.invalid">');
+assert.equal(html.text,'');assert.equal(html.htmlOnly,true);
+const mixed=parse('Content-Type: multipart/mixed; boundary="x"\r\n\r\n--x\r\nContent-Type: text/plain\r\n\r\nbody\r\n--x\r\nContent-Type: text/plain\r\nContent-Disposition: attachment; filename="fallback"; filename*=UTF-8\'\'%E6%97%A5%E6%9C%AC.txt\r\nContent-Transfer-Encoding: base64\r\n\r\naGk=\r\n--x--');
+assert.equal(mixed.text,'body');assert.equal(mixed.attachments[0].name,'日本.txt');assert.equal(new TextDecoder().decode(mixed.attachments[0].bytes),'hi');
+assert.throws(()=>parse('Content-Transfer-Encoding: base64\r\n\r\n%%%'));
+let nested='Content-Type: text/plain\r\n\r\nbody';for(let i=0;i<12;i++)nested=`Content-Type: multipart/mixed; boundary="b${i}"\r\n\r\n--b${i}\r\n${nested}\r\n--b${i}--`;
+assert.throws(()=>parse(nested));
+console.log('MIME Unicode, attachments, HTML isolation and parser bounds: passed');

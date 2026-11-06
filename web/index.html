@@ -1,0 +1,328 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>CloudieMail</title>
+    <link rel="stylesheet" href="/style.css" />
+    <script src="/mime.js" defer></script>
+    <script src="/app.js" defer></script>
+  </head>
+  <body>
+    <section id="login-screen" class="login-screen">
+      <div class="welcome-panel">
+        <div class="brand">
+          <svg class="icon brand-icon"><use href="/icons.svg#cloud" /></svg
+          ><span>CloudieMail</span>
+        </div>
+        <div class="welcome-copy">
+          <span class="eyebrow">WEBMAIL</span>
+          <h1 data-i18n="mail.welcome">Seu email, no seu espaço.</h1>
+          <p data-i18n="mail.welcome_body"></p>
+          <div class="privacy-note">
+            <svg class="icon"><use href="/icons.svg#shield" /></svg
+            ><span data-i18n="mail.secure_storage"></span>
+          </div>
+        </div>
+        <span class="welcome-footer">CloudieMail</span>
+      </div>
+      <div class="login-main">
+        <div class="language-row">
+          <select
+            id="login-language"
+            class="language"
+            aria-label="Language"
+          ></select>
+        </div>
+        <form id="login-form" class="login-card">
+          <div class="login-emblem">
+            <svg class="icon"><use href="/icons.svg#mail" /></svg>
+          </div>
+          <h2 data-i18n="mail.sign_in">Entrar</h2>
+          <p class="muted" data-i18n="mail.sign_in_body"></p>
+          <label for="email" data-i18n="field.email"></label
+          ><input
+            id="email"
+            type="email"
+            autocomplete="username"
+            required
+            maxlength="254"
+            placeholder="voce@seudominio.com"
+          /><label for="password" data-i18n="field.login_password"></label
+          ><input
+            id="password"
+            type="password"
+            autocomplete="current-password"
+            required
+            maxlength="1024"
+          />
+          <p id="login-error" class="error" role="alert"></p>
+          <button
+            id="login-button"
+            class="primary"
+            type="submit"
+            data-i18n="mail.sign_in"
+          >
+            Entrar
+          </button>
+        </form>
+      </div>
+    </section>
+    <section id="mail-screen" class="mail-screen" hidden>
+      <aside class="sidebar">
+        <div class="brand">
+          <svg class="icon brand-icon"><use href="/icons.svg#cloud" /></svg
+          ><span>CloudieMail</span>
+        </div>
+        <button id="compose" class="primary compose-button">
+          <svg class="icon"><use href="/icons.svg#plus" /></svg
+          ><span data-i18n="mail.compose"></span>
+        </button>
+        <div class="nav-caption">
+          <span data-i18n="mail.folders"></span
+          ><button
+            id="new-folder"
+            class="icon-button"
+            data-title="mail.create_folder"
+          >
+            <svg class="icon"><use href="/icons.svg#plus" /></svg>
+          </button>
+        </div>
+        <nav id="folders" aria-label="Folders"></nav>
+        <div class="nav-caption"><span data-i18n="mail.labels"></span></div>
+        <nav id="labels" aria-label="Labels"></nav>
+        <div class="sidebar-bottom">
+          <select
+            id="mail-language"
+            class="language"
+            aria-label="Language"
+          ></select>
+          <div class="account">
+            <span id="avatar" class="avatar"></span
+            ><span id="account-name"></span
+            ><button id="logout" class="icon-button" data-title="mail.logout">
+              <svg class="icon"><use href="/icons.svg#logout" /></svg>
+            </button>
+          </div>
+        </div>
+      </aside>
+      <main class="workspace">
+        <header class="workspace-header">
+          <button
+            id="navigation-toggle"
+            class="icon-button navigation-toggle"
+            data-title="mail.folders"
+          >
+            <svg class="icon"><use href="/icons.svg#folder" /></svg>
+          </button>
+          <div>
+            <span class="eyebrow">CLOUDIEMAIL</span>
+            <h1 id="folder-title"></h1>
+          </div>
+          <div class="search-box">
+            <svg class="icon"><use href="/icons.svg#search" /></svg
+            ><input id="search" type="search" data-placeholder="mail.search" />
+          </div>
+          <button id="refresh" class="icon-button" data-title="mail.refresh">
+            <svg class="icon"><use href="/icons.svg#refresh" /></svg>
+          </button>
+        </header>
+        <p id="mail-error" class="banner" role="status" hidden></p>
+        <div id="mail-columns" class="mail-columns">
+          <section class="message-list">
+            <div class="list-toolbar">
+              <span id="total-count"></span>
+              <div class="folder-tools">
+                <button
+                  id="rename-folder"
+                  class="icon-button"
+                  data-title="mail.rename_folder"
+                >
+                  <svg class="icon">
+                    <use href="/icons.svg#settings" />
+                  </svg></button
+                ><button
+                  id="remove-folder"
+                  class="icon-button"
+                  data-title="mail.remove_folder"
+                >
+                  <svg class="icon"><use href="/icons.svg#trash" /></svg>
+                </button>
+              </div>
+            </div>
+            <div id="messages" class="messages"></div>
+            <div id="empty" class="empty-list" data-i18n="mail.empty"></div>
+            <footer class="pagination">
+              <button
+                id="previous"
+                class="icon-button"
+                data-title="mail.previous"
+              >
+                <svg class="icon"><use href="/icons.svg#left" /></svg></button
+              ><span id="page-count"></span
+              ><button id="next" class="icon-button" data-title="mail.next">
+                <svg class="icon"><use href="/icons.svg#right" /></svg>
+              </button>
+            </footer>
+          </section>
+          <section class="reader">
+            <div id="reader-empty" class="reader-empty">
+              <div class="empty-emblem">
+                <svg class="icon"><use href="/icons.svg#mail" /></svg>
+              </div>
+              <h2 data-i18n="mail.select_message"></h2>
+              <p data-i18n="mail.select_body"></p>
+            </div>
+            <article id="message-detail" hidden>
+              <div class="reader-toolbar">
+                <button id="reply" class="text-button">
+                  <svg class="icon"><use href="/icons.svg#reply" /></svg
+                  ><span data-i18n="mail.reply"></span></button
+                ><button
+                  id="forward"
+                  class="icon-button"
+                  data-title="mail.forward"
+                >
+                  <svg class="icon">
+                    <use href="/icons.svg#forward" />
+                  </svg></button
+                ><span class="toolbar-spacer"></span
+                ><button
+                  id="star-message"
+                  class="icon-button"
+                  data-title="mail.star"
+                >
+                  <svg class="icon"><use href="/icons.svg#star" /></svg></button
+                ><button
+                  id="unread-message"
+                  class="icon-button"
+                  data-title="mail.mark_unread"
+                >
+                  <svg class="icon"><use href="/icons.svg#mail" /></svg></button
+                ><button
+                  id="labels-message"
+                  class="icon-button"
+                  data-title="mail.edit_labels"
+                >
+                  <svg class="icon"><use href="/icons.svg#tag" /></svg></button
+                ><button
+                  id="delete-message"
+                  class="icon-button"
+                  data-title="mail.trash"
+                >
+                  <svg class="icon"><use href="/icons.svg#trash" /></svg>
+                </button>
+              </div>
+              <div class="message-heading">
+                <h2 id="message-subject"></h2>
+                <div class="sender-row">
+                  <span class="sender-avatar"
+                    ><svg class="icon"><use href="/icons.svg#mail" /></svg
+                  ></span>
+                  <div>
+                    <strong id="message-from"></strong>
+                    <div id="message-to" class="muted"></div>
+                  </div>
+                  <time id="message-date"></time>
+                </div>
+                <div class="message-options">
+                  <label for="move-message" data-i18n="mail.move"></label
+                  ><select id="move-message"></select
+                  ><button
+                    id="edit-draft"
+                    class="text-button"
+                    data-i18n="mail.edit_draft"
+                    hidden
+                  ></button
+                  ><button
+                    id="download-message"
+                    class="icon-button"
+                    data-title="mail.download"
+                  >
+                    <svg class="icon"><use href="/icons.svg#download" /></svg>
+                  </button>
+                </div>
+                <div id="message-labels" class="chips"></div>
+              </div>
+              <pre id="message-body" class="message-body"></pre>
+              <div id="attachments" class="attachments"></div>
+            </article>
+          </section>
+        </div>
+        <section id="deliveries-panel" class="deliveries" hidden>
+          <div id="deliveries-list"></div>
+        </section>
+      </main>
+    </section>
+    <dialog id="compose-dialog" class="compose-dialog">
+      <form id="compose-form">
+        <header class="dialog-header">
+          <h2 data-i18n="mail.compose"></h2>
+          <button
+            id="close-compose"
+            class="icon-button"
+            type="button"
+            data-title="action.cancel"
+          >
+            <svg class="icon"><use href="/icons.svg#close" /></svg>
+          </button>
+        </header>
+        <div class="compose-fields">
+          <label for="to" data-i18n="mail.to"></label
+          ><input
+            id="to"
+            type="text"
+            maxlength="4096"
+            autocomplete="off"
+          /><label for="subject" data-i18n="mail.subject"></label
+          ><input id="subject" maxlength="200" /><label
+            for="body"
+            data-i18n="mail.body"
+          ></label
+          ><textarea id="body" rows="12"></textarea
+          ><label class="attachment-input" for="compose-files"
+            ><svg class="icon"><use href="/icons.svg#attachment" /></svg
+            ><span data-i18n="mail.attachments"></span
+            ><input id="compose-files" type="file" multiple
+          /></label>
+          <div id="compose-file-list" class="muted"></div>
+          <p id="compose-error" class="error" role="alert"></p>
+        </div>
+        <footer class="dialog-footer">
+          <button
+            id="save-draft"
+            class="text-button"
+            type="button"
+            data-i18n="mail.save_draft"
+          ></button
+          ><button id="send-button" class="primary" type="submit">
+            <svg class="icon"><use href="/icons.svg#send" /></svg
+            ><span data-i18n="mail.send"></span>
+          </button>
+        </footer>
+      </form>
+    </dialog>
+    <dialog id="edit-dialog" class="edit-dialog">
+      <form id="edit-form">
+        <h2 id="edit-title"></h2>
+        <label id="edit-label" for="edit-value"></label
+        ><input id="edit-value" maxlength="700" />
+        <p id="edit-error" class="error" role="alert"></p>
+        <div class="dialog-footer">
+          <button
+            id="edit-cancel"
+            type="button"
+            class="text-button"
+            data-i18n="action.cancel"
+          ></button
+          ><button
+            class="primary"
+            type="submit"
+            data-i18n="action.save"
+          ></button>
+        </div>
+      </form>
+    </dialog>
+  </body>
+</html>

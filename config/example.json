@@ -1,0 +1,23 @@
+{
+  "domain": "example.test",
+  "bind": "127.0.0.1",
+  "database": "../data/cloudiemail.fdb",
+  "certificate": "../data/tls.crt",
+  "private_key": "../data/tls.key",
+  "web_root": "../web",
+  "smtp_port": 2525,
+  "smtps_port": 2465,
+  "imap_port": 2993,
+  "pop3_port": 2995,
+  "https_port": 8443,
+  "webmail_driver": "socket",
+  "max_message_bytes": 10485760,
+  "max_connections": 16,
+  "mailbox_quota_bytes": 268435456,
+  "session_timeout_seconds": 300,
+  "language": "pt-BR",
+  "submission_port": 2587,
+  "outbound_enabled": true,
+  "outbound_ipv6": false,
+  "webmail_backend_port": 8787
+}

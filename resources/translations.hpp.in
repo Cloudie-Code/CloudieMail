@@ -1,0 +1,2 @@
+#pragma once
+inline constexpr unsigned char cloudiemail_translations[] = {@CM_LOCALES_BYTES@0};

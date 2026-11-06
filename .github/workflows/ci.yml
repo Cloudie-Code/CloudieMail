@@ -26,3 +26,5 @@ jobs:
         run: bash scripts/build-linux.sh
       - name: Test MIME parser
         run: node tests/mime_test.js
+      - name: Test release manifest checks
+        run: python3 tests/release_test.py

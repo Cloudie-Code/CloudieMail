@@ -41,7 +41,7 @@ def verify(folder):
             raise ValueError(f"Installation data must not be published: {name}")
         if path.suffix.lower() in {".pfx", ".p12", ".key", ".etl", ".log"}:
             raise ValueError(f"Private or runtime file in package: {name}")
-        if path.suffix.lower() == ".fdb" and name not in {
+        if path.suffix.lower() == ".fdb" and name.lower() not in {
             "bin/security5.fdb",
             "runtime/firebird/security5.fdb",
         }:
